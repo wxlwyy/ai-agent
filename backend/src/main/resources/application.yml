@@ -3,6 +3,17 @@ spring:
     name: ai-agent-backend
   profiles:
     active: local
+  datasource: # 数据库配置
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/ai_agent
+    password: 123456
+    username: root  #这里一定要注意不是name（数据源名称）而是username！！！
+  ai:
+    chat:
+      memory:
+        repository:
+          jdbc:
+            initialize-schema: always
 server:
   port: 8081
   servlet:
