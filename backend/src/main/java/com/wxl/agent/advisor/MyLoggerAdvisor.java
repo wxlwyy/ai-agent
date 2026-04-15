@@ -9,6 +9,7 @@ import org.springframework.ai.chat.client.advisor.api.CallAdvisor;
 import org.springframework.ai.chat.client.advisor.api.CallAdvisorChain;
 import org.springframework.ai.chat.client.advisor.api.StreamAdvisor;
 import org.springframework.ai.chat.client.advisor.api.StreamAdvisorChain;
+import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 
 /**
@@ -16,6 +17,7 @@ import reactor.core.publisher.Flux;
  * 打印 info 级别日志、只输出单次用户提示词和 AI 回复的文本
  */
 @Slf4j
+@Component
 public class MyLoggerAdvisor implements CallAdvisor, StreamAdvisor {
 
 	// SimpleLoggerAdvisor
@@ -31,12 +33,12 @@ public class MyLoggerAdvisor implements CallAdvisor, StreamAdvisor {
 	}
 
 	private ChatClientRequest before(ChatClientRequest request) {
-		log.info("AI Request: {}", request.prompt());
+		log.info("\nAI Request: {}", request.prompt());
 		return request;
 	}
 
 	private void observeAfter(ChatClientResponse chatClientResponse) {
-		log.info("AI Response: {}", chatClientResponse.chatResponse().getResult().getOutput().getText());
+		log.info("\nAI Response: {}", chatClientResponse.chatResponse().getResult().getOutput().getText());
 	}
 
 	@Override
