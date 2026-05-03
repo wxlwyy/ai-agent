@@ -4,15 +4,26 @@ spring:
   profiles:
     active: local
   ai:
-    chat:
+    chat:  # 对话记忆
       memory:
         repository:
           jdbc:
             initialize-schema: always
+    vectorstore:  # pgsql中的向量数据库配置
+      pgvector:
+        index-type: HNSW
+        dimensions: 1024
+        distance-type: COSINE_DISTANCE
+        max-document-batch-size: 10000 # Optional: Maximum number of documents per batch
+        initialize-schema: true
+
 server:
   port: 8081
   servlet:
     context-path: /api
+# 用来初始化知识库
+app:
+  init-vectorstore: false  # 导完数据手动改成 false
 # springdoc-openapi项目配置
 springdoc:
   swagger-ui:

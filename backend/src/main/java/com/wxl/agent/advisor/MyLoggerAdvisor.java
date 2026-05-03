@@ -17,7 +17,6 @@ import reactor.core.publisher.Flux;
  * 打印 info 级别日志、只输出单次用户提示词和 AI 回复的文本
  */
 @Slf4j
-@Component
 public class MyLoggerAdvisor implements CallAdvisor, StreamAdvisor {
 
 	// SimpleLoggerAdvisor

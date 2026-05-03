@@ -2,6 +2,9 @@ package com.wxl.agent.app;
 
 import com.wxl.agent.advisor.MyLoggerAdvisor;
 import com.wxl.agent.advisor.ReReadingAdvisor;
+import com.wxl.agent.rag.LoveAppDocumentLoader;
+import com.wxl.agent.rag.LoveAppRagCustomAdvisorFactory;
+import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,61 +20,40 @@ import org.springframework.ai.chat.memory.repository.jdbc.JdbcChatMemoryReposito
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.PromptTemplate;
+import org.springframework.ai.document.Document;
 import org.springframework.ai.rag.advisor.RetrievalAugmentationAdvisor;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.ai.vectorstore.pgvector.PgVectorStore;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+
+import static com.wxl.agent.config.ChatClientConfig.SYSTEM_PROMPT;
 
 @Component
 @Slf4j
 public class LoveApp {
 
-
     private final ChatClient chatClient;
 
-    private final MyLoggerAdvisor myLoggerAdvisor;
+    private final VectorStore pgVectorStore;
 
-    private static final String SYSTEM_PROMPT = "扮演深耕恋爱心理领域的专家。开场向用户表明身份，告知用户可倾诉恋爱难题。" +
-    "围绕单身、恋爱、已婚三种状态提问：单身状态询问社交圈拓展及追求心仪对象的困扰；" +
-    "恋爱状态询问沟通、习惯差异引发的矛盾；已婚状态询问家庭责任与亲属关系处理的问题。" +
-    "引导用户详述事情经过、对方反应及自身想法，以便给出专属解决方案。";
+    private final QuestionAnswerAdvisor questionAnswerAdvisor;
 
-    /**
-     * 初始化 ChatClient
-     *
-     * @param dashscopeChatModel
-     */
-    public LoveApp(ChatModel dashscopeChatModel, JdbcChatMemoryRepository jdbcChatMemoryRepository,
-                   VectorStore vectorStore, MyLoggerAdvisor myLoggerAdvisor,
+    private final RetrievalAugmentationAdvisor loveAppRagCloudAdvisor;
+
+    public LoveApp(ChatClient chatClient,
+                   @Qualifier("vectorStore") VectorStore vectorStore,
                    RetrievalAugmentationAdvisor loveAppRagCloudAdvisor) {
-        this.myLoggerAdvisor = myLoggerAdvisor;
-        // 初始化基于内存的向量数据库对象
-        this.loveAppVectorStore = vectorStore;
-        // 初始化问题回答拦截器对象
-        this.questionAnswerAdvisor = QuestionAnswerAdvisor.builder(loveAppVectorStore).build();
+        this.chatClient = chatClient;
+        // 初始化基于pgsql的向量数据库对象
+        this.pgVectorStore = vectorStore;
         // 初始化云端rag拦截器
         this.loveAppRagCloudAdvisor = loveAppRagCloudAdvisor;
-//        // 初始化基于文件的对话记忆
-//        val inMemoryChatMemoryRepository = new InMemoryChatMemoryRepository();
-//        String fileDir = System.getProperty("user.dir") + "/tmp/chat-memory";
-//        ChatMemory chatMemory = new FileBasedChatMemory(fileDir);
-
-        // 初始化基于内存的对话记忆
-        MessageWindowChatMemory chatMemory = MessageWindowChatMemory.builder()
-                .chatMemoryRepository(jdbcChatMemoryRepository)
-                .maxMessages(10)  // 能记住3轮对话（因为1轮对话是2个消息）
-                .build();
-        chatClient = ChatClient.builder(dashscopeChatModel)
-                .defaultSystem(SYSTEM_PROMPT)
-                .defaultAdvisors(
-                        MessageChatMemoryAdvisor.builder(chatMemory).build(),
-                        // 自定义日志 Advisor，可按需开启
-                        myLoggerAdvisor
-//                        // 自定义推理增强 Advisor，可按需开启
-//                       ,new ReReadingAdvisor()
-                )
-                .build();
+        // 初始化问题回答拦截器对象
+        this.questionAnswerAdvisor = QuestionAnswerAdvisor.builder(vectorStore).build();
     }
 
     /**
@@ -115,11 +97,6 @@ public class LoveApp {
         return loveReport;
     }
 
-    private final VectorStore loveAppVectorStore;
-
-    private final QuestionAnswerAdvisor questionAnswerAdvisor;
-
-    private final RetrievalAugmentationAdvisor loveAppRagCloudAdvisor;
 
     /**
      * 和 RAG 知识库进行对话
@@ -140,19 +117,22 @@ public class LoveApp {
                 // 应用 RAG 知识库问答
 //                .advisors(questionAnswerAdvisor)
                 // 应用 RAG 检索增强服务（基于云知识库服务）
-                .advisors(loveAppRagCloudAdvisor)
+//                .advisors(loveAppRagCloudAdvisor)
                 // 应用 RAG 检索增强服务（基于 PgVector 向量存储）
 //                .advisors(new QuestionAnswerAdvisor(pgVectorVectorStore))
                 // 应用自定义的 RAG 检索增强服务（文档查询器 + 上下文增强器）
-//                .advisors(
-//                        LoveAppRagCustomAdvisorFactory.createLoveAppRagCustomAdvisor(
-//                                loveAppVectorStore, "单身"
-//                        )
-//                )
+                .advisors(
+                        LoveAppRagCustomAdvisorFactory.createLoveAppRagCustomAdvisor(
+                                pgVectorStore, "火箭制造"
+                        )
+                )
                 .call()
                 .chatResponse();
         String content = chatResponse.getResult().getOutput().getText();
         log.info("content: {}", content);
         return content;
     }
+
+    // 测试pgsql向量数据库
+    public void pgVectorVectorStore(){}
 }
