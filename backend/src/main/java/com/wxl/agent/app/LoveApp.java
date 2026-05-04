@@ -22,6 +22,7 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.rag.advisor.RetrievalAugmentationAdvisor;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.pgvector.PgVectorStore;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -44,9 +45,12 @@ public class LoveApp {
 
     private final RetrievalAugmentationAdvisor loveAppRagCloudAdvisor;
 
+    private final ToolCallback[] allTools;
+
     public LoveApp(ChatClient chatClient,
                    @Qualifier("vectorStore") VectorStore vectorStore,
-                   RetrievalAugmentationAdvisor loveAppRagCloudAdvisor) {
+                   RetrievalAugmentationAdvisor loveAppRagCloudAdvisor,
+                   ToolCallback[] toolCallback) {
         this.chatClient = chatClient;
         // 初始化基于pgsql的向量数据库对象
         this.pgVectorStore = vectorStore;
@@ -54,6 +58,7 @@ public class LoveApp {
         this.loveAppRagCloudAdvisor = loveAppRagCloudAdvisor;
         // 初始化问题回答拦截器对象
         this.questionAnswerAdvisor = QuestionAnswerAdvisor.builder(vectorStore).build();
+        this.allTools = toolCallback;
     }
 
     /**
@@ -135,4 +140,26 @@ public class LoveApp {
 
     // 测试pgsql向量数据库
     public void pgVectorVectorStore(){}
+
+    /**
+     * AI 恋爱报告功能（支持调用工具）
+     *
+     * @param message
+     * @param chatId
+     * @return
+     */
+    public String doChatWithTools(String message, String chatId) {
+        ChatResponse chatResponse = chatClient
+                .prompt()
+                .user(message)
+                .advisors(spec -> spec.param(ChatMemory.CONVERSATION_ID, chatId))
+                // 开启日志，便于观察效果
+                .advisors(new MyLoggerAdvisor())
+                .toolCallbacks(allTools)
+                .call()
+                .chatResponse();
+        String content = chatResponse.getResult().getOutput().getText();
+        log.info("content: {}", content);
+        return content;
+    }
 }
